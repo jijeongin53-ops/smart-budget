@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { upload } from "@vercel/blob/client";
 
 interface Project {
   id: string;
@@ -394,17 +395,17 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingFile(true);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      const newBlob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
       });
-      const data = await res.json();
       
-      if (data.success && data.file) {
-        setUploadedFiles(prev => [...prev, data.file]);
-      } else {
-        alert("파일 업로드 실패: " + (data.error || "알 수 없는 오류"));
-      }
+      setUploadedFiles(prev => [...prev, {
+        name: file.name,
+        url: newBlob.url,
+        downloadUrl: newBlob.url,
+        driveId: newBlob.url
+      }]);
     } catch (err: any) {
       alert("업로드 API 호출 오류: " + err.message);
     } finally {
@@ -429,17 +430,17 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingFile(true);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      const newBlob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
       });
-      const data = await res.json();
       
-      if (data.success && data.file) {
-        setUploadedFiles(prev => [...prev, data.file]);
-      } else {
-        alert("파일 업로드 실패: " + (data.error || "알 수 없는 오류"));
-      }
+      setUploadedFiles(prev => [...prev, {
+        name: file.name,
+        url: newBlob.url,
+        downloadUrl: newBlob.url,
+        driveId: newBlob.url
+      }]);
     } catch (err: any) {
       alert("업로드 오류: " + err.message);
     } finally {
@@ -464,17 +465,17 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingNewProjFile(true);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      const newBlob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
       });
-      const data = await res.json();
       
-      if (data.success && data.file) {
-        setNewProjFiles(prev => [...prev, data.file]);
-      } else {
-        alert("파일 업로드 실패: " + (data.error || "알 수 없는 오류"));
-      }
+      setNewProjFiles(prev => [...prev, {
+        name: file.name,
+        url: newBlob.url,
+        downloadUrl: newBlob.url,
+        driveId: newBlob.url
+      }]);
     } catch (err: any) {
       alert("업로드 API 호출 오류: " + err.message);
     } finally {
@@ -495,17 +496,17 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingNewProjFile(true);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      const newBlob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
       });
-      const data = await res.json();
       
-      if (data.success && data.file) {
-        setNewProjFiles(prev => [...prev, data.file]);
-      } else {
-        alert("파일 업로드 실패: " + (data.error || "알 수 없는 오류"));
-      }
+      setNewProjFiles(prev => [...prev, {
+        name: file.name,
+        url: newBlob.url,
+        downloadUrl: newBlob.url,
+        driveId: newBlob.url
+      }]);
     } catch (err: any) {
       alert("업로드 오류: " + err.message);
     } finally {
