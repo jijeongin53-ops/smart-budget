@@ -1,7 +1,53 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { upload } from "@vercel/blob/client";
+
+// Helper to convert File to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      let encoded = reader.result?.toString() || '';
+      encoded = encoded.split(',')[1] || encoded;
+      resolve(encoded);
+    };
+    reader.onerror = error => reject(error);
+  });
+};
+
+// Helper to upload directly to Google Apps Script
+const uploadToGAS = async (file: File) => {
+  const gasUrl = process.env.NEXT_PUBLIC_GAS_UPLOAD_URL;
+  if (!gasUrl) {
+    throw new Error("NEXT_PUBLIC_GAS_UPLOAD_URL 환경변수가 설정되지 않았습니다. 관리자에게 문의하세요.");
+  }
+
+  const base64Data = await fileToBase64(file);
+  const payload = {
+    filename: file.name,
+    mimeType: file.type || "application/octet-stream",
+    fileData: base64Data
+  };
+
+  const res = await fetch(gasUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(payload)
+  });
+  
+  const data = await res.json();
+  if (data.success) {
+    return {
+      name: file.name,
+      url: data.url,
+      downloadUrl: data.downloadUrl,
+      driveId: data.driveId
+    };
+  } else {
+    throw new Error(data.error || "구글 드라이브 직접 업로드 실패");
+  }
+};
 
 interface Project {
   id: string;
@@ -395,17 +441,8 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingFile(true);
-      const newBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-      });
-      
-      setUploadedFiles(prev => [...prev, {
-        name: file.name,
-        url: newBlob.url,
-        downloadUrl: newBlob.url,
-        driveId: newBlob.url
-      }]);
+      const uploadedFile = await uploadToGAS(file);
+      setUploadedFiles(prev => [...prev, uploadedFile]);
     } catch (err: any) {
       alert("업로드 API 호출 오류: " + err.message);
     } finally {
@@ -430,17 +467,8 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingFile(true);
-      const newBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-      });
-      
-      setUploadedFiles(prev => [...prev, {
-        name: file.name,
-        url: newBlob.url,
-        downloadUrl: newBlob.url,
-        driveId: newBlob.url
-      }]);
+      const uploadedFile = await uploadToGAS(file);
+      setUploadedFiles(prev => [...prev, uploadedFile]);
     } catch (err: any) {
       alert("업로드 오류: " + err.message);
     } finally {
@@ -465,17 +493,8 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingNewProjFile(true);
-      const newBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-      });
-      
-      setNewProjFiles(prev => [...prev, {
-        name: file.name,
-        url: newBlob.url,
-        downloadUrl: newBlob.url,
-        driveId: newBlob.url
-      }]);
+      const uploadedFile = await uploadToGAS(file);
+      setNewProjFiles(prev => [...prev, uploadedFile]);
     } catch (err: any) {
       alert("업로드 API 호출 오류: " + err.message);
     } finally {
@@ -496,17 +515,8 @@ export default function BudgetDashboard() {
 
     try {
       setUploadingNewProjFile(true);
-      const newBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-      });
-      
-      setNewProjFiles(prev => [...prev, {
-        name: file.name,
-        url: newBlob.url,
-        downloadUrl: newBlob.url,
-        driveId: newBlob.url
-      }]);
+      const uploadedFile = await uploadToGAS(file);
+      setNewProjFiles(prev => [...prev, uploadedFile]);
     } catch (err: any) {
       alert("업로드 오류: " + err.message);
     } finally {
