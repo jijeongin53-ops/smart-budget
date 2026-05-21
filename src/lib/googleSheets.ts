@@ -136,15 +136,24 @@ export async function getProjects() {
   });
   
   const rows = response.data.values || [];
-  return rows.map((row) => ({
-    id: row[0] || "",
-    name: row[1] || "",
-    guideline: row[2] || "{}",
-    remainingBudget: parseInt(row[3] || "0", 10),
-    totalBudget: parseInt(row[4] || "0", 10),
-    period: row[5] || "",
-    status: row[6] || "진행중",
-  }));
+  return rows.map((row) => {
+    let files = [];
+    try {
+      if (row[7]) files = JSON.parse(row[7]);
+    } catch(e) {
+      files = [];
+    }
+    return {
+      id: row[0] || "",
+      name: row[1] || "",
+      guideline: row[2] || "{}",
+      remainingBudget: parseInt(row[3] || "0", 10),
+      totalBudget: parseInt(row[4] || "0", 10),
+      period: row[5] || "",
+      status: row[6] || "진행중",
+      files: files
+    };
+  });
 }
 
 // 집행 계획(Expenses) 조회
@@ -302,6 +311,7 @@ export async function addProject(project: {
   name: string;
   totalBudget: number;
   period: string;
+  files?: any[];
 }) {
   const { sheets, spreadsheetId } = await getGoogleSheets();
   
@@ -320,10 +330,12 @@ export async function addProject(project: {
     }
   }, null, 2);
 
+  const filesString = project.files && project.files.length > 0 ? JSON.stringify(project.files) : "";
+
   // Projects 시트 맨 아래에 행 추가 (잔여예산은 초기 등록 시 예산총액과 동일하게 삽입)
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: "Projects!A:G",
+    range: "Projects!A:H",
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [[
@@ -333,7 +345,8 @@ export async function addProject(project: {
         project.totalBudget.toString(), // 잔여예산
         project.totalBudget.toString(), // 예산총액
         project.period,
-        "진행중"
+        "진행중",
+        filesString
       ]]
     }
   });

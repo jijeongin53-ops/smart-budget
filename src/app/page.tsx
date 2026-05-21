@@ -170,6 +170,9 @@ export default function BudgetDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>("전체");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const newProjFileInputRef = useRef<HTMLInputElement>(null);
+  const [newProjFiles, setNewProjFiles] = useState<Array<{ name: string; url: string; driveId?: string }>>([]);
+  const [uploadingNewProjFile, setUploadingNewProjFile] = useState<boolean>(false);
 
   // 라이트 테마 활성화 토글 이펙트
   useEffect(() => {
@@ -449,6 +452,71 @@ export default function BudgetDashboard() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // 새 사업 등록 파일 업로드 처리
+  const handleNewProjFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (newProjFiles.length >= 10) return alert("파일은 최대 10개까지만 업로드할 수 있습니다.");
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setUploadingNewProjFile(true);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.success && data.file) {
+        setNewProjFiles(prev => [...prev, data.file]);
+      } else {
+        alert("파일 업로드 실패: " + (data.error || "알 수 없는 오류"));
+      }
+    } catch (err: any) {
+      alert("업로드 API 호출 오류: " + err.message);
+    } finally {
+      setUploadingNewProjFile(false);
+      if (newProjFileInputRef.current) newProjFileInputRef.current.value = "";
+    }
+  };
+
+  const handleNewProjDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    if (newProjFiles.length >= 10) return alert("파일은 최대 10개까지만 업로드할 수 있습니다.");
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setUploadingNewProjFile(true);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.success && data.file) {
+        setNewProjFiles(prev => [...prev, data.file]);
+      } else {
+        alert("파일 업로드 실패: " + (data.error || "알 수 없는 오류"));
+      }
+    } catch (err: any) {
+      alert("업로드 오류: " + err.message);
+    } finally {
+      setUploadingNewProjFile(false);
+    }
+  };
+
+  const handleRemoveNewProjFile = (index: number) => {
+    setNewProjFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   // AI 실시간 예산 적격성 검토 요청
   const handleAICheck = async () => {
     const rawAmount = parseInt(amountInput.replace(/,/g, ""), 10);
@@ -549,7 +617,8 @@ export default function BudgetDashboard() {
           id: newProjId,
           name: newProjName,
           totalBudget: rawBudget,
-          period: newProjPeriod
+          period: newProjPeriod,
+          files: newProjFiles
         })
       });
 
@@ -562,6 +631,7 @@ export default function BudgetDashboard() {
         setNewProjName("");
         setNewProjBudget("");
         setNewProjPeriod("");
+        setNewProjFiles([]);
         
         // 선택 사업 탭을 방금 추가한 사업으로 동기 변경
         setActiveProjectId(newProjId);
@@ -639,17 +709,17 @@ export default function BudgetDashboard() {
           <h1>SMART BUDGET <span>AI</span></h1>
         </div>
         
-        {/* 구글 시트 연결 상태 배지 */}
+        {/* 구글 시트 연결 상태 배지 (초기화 안된 경우에만 표시) */}
         <div className="header-controls">
-          <div className="sheets-connection-badge">
-            <div className={`pulse-indicator ${sheetInitialized ? "" : "disconnected"}`} id="sync-pulse"></div>
-            <div className="sheets-info">
-              <span className="status-label">Google Sheets DB</span>
-              <span className="status-value">
-                {sheetInitialized ? "연동 완료 (Active)" : "연동 필요 (Disconnected)"}
-              </span>
+          {!sheetInitialized && (
+            <div className="sheets-connection-badge">
+              <div className="pulse-indicator disconnected" id="sync-pulse"></div>
+              <div className="sheets-info">
+                <span className="status-label">Google Sheets DB</span>
+                <span className="status-value">연동 필요 (Disconnected)</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {!sheetInitialized && (
             <button
@@ -833,14 +903,16 @@ export default function BudgetDashboard() {
               const ratio = proj.totalBudget > 0 ? Math.round((proj.remainingBudget / proj.totalBudget) * 100) : 0;
               return (
                 <div key={proj.id} className="glass-card" style={{ gap: "12px", position: "relative", border: isFiltered ? "1.5px solid var(--color-primary)" : undefined }}>
-                  {proj.status !== "종료" ? (
-                    <span className="live-tag" style={{ position: "absolute", top: "20px", right: "20px" }}>ACTIVE</span>
-                  ) : (
-                    <span className="live-tag" style={{ position: "absolute", top: "20px", right: "20px", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>CLOSED</span>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "between", alignItems: "start" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                     <div style={{ flex: 1 }}>
-                      <span className={`status-badge ${proj.status === "종료" ? "pass" : "pending"}`} style={{ marginBottom: "8px" }}>{proj.id}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                        <span className={`status-badge ${proj.status === "종료" ? "pass" : "pending"}`}>{proj.id}</span>
+                        {proj.status !== "종료" ? (
+                          <span className="live-tag">ACTIVE</span>
+                        ) : (
+                          <span className="live-tag" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>CLOSED</span>
+                        )}
+                      </div>
                       <h4 style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-main)" }}>{proj.name}</h4>
                     </div>
                     <div style={{ textAlign: "right" }}>
@@ -1581,6 +1653,60 @@ export default function BudgetDashboard() {
                   className="custom-input"
                   required
                 />
+              </div>
+
+              {/* 용역계약서 등 첨부파일 업로드 */}
+              <div className="form-group">
+                <label>관련 문서 및 계약서 업로드 (최대 10개)</label>
+                <div className="file-upload-section">
+                  <div 
+                    onDragOver={handleDragOver}
+                    onDrop={handleNewProjDrop}
+                    onClick={() => newProjFileInputRef.current?.click()}
+                    className="drag-drop-zone"
+                  >
+                    <input 
+                      type="file" 
+                      ref={newProjFileInputRef} 
+                      onChange={handleNewProjFileUpload} 
+                      style={{ display: "none" }} 
+                    />
+                    <div className="upload-icon">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                    </div>
+                    <p className="upload-prompt">마우스로 서류를 끌어놓거나 <span>파일 선택</span></p>
+                    <p className="upload-limit">영수증, 명세서 (PDF, PNG, JPG 최대 50MB)</p>
+                    
+                    {uploadingNewProjFile && (
+                      <div style={{ width: "80px", height: "3px", background: "var(--border-card)", borderRadius: "4px", overflow: "hidden", marginTop: "8px" }}>
+                        <div style={{ width: "100%", height: "100%", background: "var(--color-primary)", animation: "spin 1.5s linear infinite" }}></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {newProjFiles.length > 0 && (
+                    <div className="file-chips-container">
+                      {newProjFiles.map((file, idx) => (
+                        <div key={idx} className="file-chip">
+                          <a href={file.url} target="_blank" rel="noopener noreferrer">
+                            {file.name}
+                          </a>
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveNewProjFile(idx)} 
+                            className="file-remove-btn"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
